@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pharmacy Inventory (Local Prototype)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --font-serif: 'Playfair Display', serif;
+      --font-sans: 'Inter', sans-serif;
+      --color-text: #1f2937;
+      --color-background: #f9fafb;
+      --color-border: #e5e7eb;
+    }
+    body { font-family: var(--font-sans); background-color: var(--color-background); color: var(--color-text); }
+    h1,h2,h3 { font-family: var(--font-serif); }
+    /* Elegant styles, fade-ins, buttons, modal animations kept same */
+    .item-row { border-bottom: 1px solid var(--color-border); transition: background-color 0.2s; }
+    .item-row:hover { background-color: #f3f4f6; }
+    .elegant-input { background-color: #fff; border: 1px solid var(--color-border); transition: all 0.2s; }
+    .elegant-input:focus { border-color: var(--color-text); box-shadow: 0 0 0 3px rgba(31,41,55,0.1); outline: none; }
+    .elegant-button { background-color: var(--color-text); color: var(--color-background); transition: all 0.2s;}
+    .elegant-button:hover { background-color: #374151; }
+    .secondary-button { background-color: transparent; border: 1px solid var(--color-border); color: var(--color-text);}
+    .secondary-button:hover { background-color: #f3f4f6; border-color: var(--color-text); }
+    .initial-hidden { opacity: 0; }
+    .fade-in { animation: fadeIn 0.8s ease-out forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
+    .form-slide-down { max-height: 1000px; transition: max-height 0.7s, opacity 0.5s, margin-top 0.5s; overflow: hidden; opacity: 1; margin-top:1rem; }
+    .form-slide-up { max-height: 0; transition: max-height 0.5s, opacity 0.3s, margin-top 0.5s; opacity: 0; margin-top:0; }
+    .modal-scale-in { animation: scaleIn 0.3s cubic-bezier(0.165,0.84,0.44,1) forwards; }
+    .modal-scale-out { animation: scaleOut 0.3s cubic-bezier(0.165,0.84,0.44,1) forwards; }
+    @keyframes scaleIn { from { transform: scale(0.95); opacity:0; } to { transform: scale(1); opacity:1; } }
+    @keyframes scaleOut { from { transform: scale(1); opacity:1; } to { transform: scale(0.95); opacity:0; } }
+    .quantity-flash-add { animation: flash-green 0.8s ease-out; }
+    .quantity-flash-use { animation: flash-red 0.8s ease-out; }
+    @keyframes flash-green { 0% { color: #10b981; } 100% { color: inherit;} }
+    @keyframes flash-red { 0% { color: #ef4444; } 100% { color: inherit;} }
+    .spinner-main { border:4px solid #e5e7eb; width:40px; height:40px; border-radius:50%; border-top-color:var(--color-text); animation:spin 1s linear infinite; }
+    .spinner-gemini { border:3px solid rgba(0,0,0,0.1); width:20px; height:20px; border-radius:50%; border-left-color:var(--color-text); animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg);} }
+  </style>
+</head>
+<body>
+  <div class="container mx-auto p-4 md:p-8 lg:p-12 max-w-7xl">
+    <header class="text-left mb-12 initial-hidden">
+      <h1 class="text-5xl md:text-6xl font-bold text-gray-800">Pharmaceutical Inventory</h1>
+      <p class="text-gray-500 mt-2 text-lg">Local Prototype – Supply Management</p>
+    </header>
+
+    <!-- Add Item -->
+    <div class="mb-8 initial-hidden" style="animation-delay:0.1s;">
+      <button id="toggle-add-form-btn" class="font-semibold py-2 px-5 rounded-md secondary-button flex items-center gap-2">
+        <span>Add New Item</span>
+      </button>
+      <div id="add-item-container" class="form-slide-up">
+        <form id="add-item-form" class="space-y-4 p-6 border border-gray-200 rounded-md bg-white">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <input type="text" id="item-name" placeholder="Item Name" required class="elegant-input w-full px-3 py-2 rounded-md">
+            <input type="text" id="catalog-number" placeholder="Catalog #" class="elegant-input w-full px-3 py-2 rounded-md">
+            <select id="category" required class="elegant-input w-full px-3 py-2 rounded-md">
+              <option>APIs (Active Ingredients)</option>
+              <option>Excipients</option>
+              <option>Solvents</option>
+              <option>Glassware</option>
+              <option>Consumables</option>
+              <option>Other</option>
+            </select>
+            <input type="text" id="location" placeholder="Location" required class="elegant-input w-full px-3 py-2 rounded-md">
+            <input type="number" id="quantity" min="0" placeholder="Quantity" required class="elegant-input w-full px-3 py-2 rounded-md">
+            <input type="text" id="units" placeholder="Units" required class="elegant-input w-full px-3 py-2 rounded-md">
+            <input type="number" id="reorder-level" min="0" placeholder="Reorder Level" required class="elegant-input w-full px-3 py-2 rounded-md">
+            <div id="expiration-date-wrapper" class="w-full">
+              <input type="text" onfocus="(this.type='date')" onblur="(this.type='text')" id="expiration-date" placeholder="Expiration Date" class="elegant-input w-full px-3 py-2 rounded-md">
+            </div>
+          </div>
+          <button type="submit" class="elegant-button font-semibold py-2 px-5 rounded-md flex items-center justify-center gap-2">Save Item</button>
+        </form>
+      </div>
+    </div>
+
+    <hr class="initial-hidden" style="animation-delay:0.1s;"/>
+
+    <!-- Filters & Actions -->
+    <div class="py-6 flex flex-col md:flex-row items-center justify-between gap-4 initial-hidden" style="animation-delay:0.2s;">
+      <div class="w-full md:w-1/2 lg:w-1/3">
+        <input type="text" id="search-input" placeholder="Search inventory..." class="elegant-input w-full px-4 py-2 rounded-md">
+      </div>
+      <div class="w-full md:w-auto flex items-center justify-between md:justify-end gap-4">
+        <select id="category-filter" class="elegant-input px-4 py-2 rounded-md">
+          <option value="all">All Categories</option>
+          <option>APIs (Active Ingredients)</option>
+          <option>Excipients</option>
+          <option>Solvents</option>
+          <option>Glassware</option>
+          <option>Consumables</option>
+          <option>Other</option>
+        </select>
+        <div class="flex items-center space-x-2">
+          <input type="checkbox" id="low-stock-filter" class="h-4 w-4 text-gray-800 border-gray-300 rounded focus:ring-gray-700">
+          <label for="low-stock-filter" class="text-sm font-medium text-gray-600">Low stock</label>
+        </div>
+        <button id="export-csv-btn" class="secondary-button text-sm font-semibold py-2 px-4 rounded-md">Export Inventory CSV</button>
+        <button id="export-log-csv-btn" class="secondary-button text-sm font-semibold py-2 px-4 rounded-md">Export Logs CSV</button>
+      </div>
+    </div>
+
+    <!-- Inventory List -->
+    <div id="inventory-list" class="w-full"></div>
+  </div>
+
+  <!-- Modals -->
+  <div id="stock-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="bg-white rounded-lg shadow-2xl p-6 w-11/12 max-w-sm modal-content border border-gray-200">
+      <h3 id="modal-title" class="text-2xl font-bold text-gray-800 mb-4">Update Stock</h3>
+      <p id="modal-item-name" class="text-sm text-gray-500 mb-4"></p>
+      <input type="number" id="modal-quantity" min="0" placeholder="Enter amount" class="elegant-input w-full px-3 py-2 rounded-md">
+      <!-- New user + lab input fields -->
+      <input type="text" id="modal-username" required placeholder="Your Name" class="elegant-input w-full px-3 py-2 rounded-md mt-4" />
+      <input type="text" id="modal-labpurpose" required placeholder="Lab / Purpose" class="elegant-input w-full px-3 py-2 rounded-md mt-2" />
+      <div class="mt-6 flex justify-end space-x-3">
+        <button id="modal-cancel-btn" class="secondary-button font-semibold py-2 px-4 rounded-md">Cancel</button>
+        <button id="modal-confirm-btn" class="elegant-button font-semibold py-2 px-4 rounded-md">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="history-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto modal-content border border-gray-200">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="history-modal-title" class="text-2xl font-bold text-gray-800">Item History</h3>
+        <button id="history-modal-close-btn" class="text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
+      </div>
+      <div id="history-modal-content" class="text-gray-600 text-sm"></div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.initial-hidden').forEach((el, idx) =>
+        setTimeout(() => el.classList.add('fade-in'), idx * 100)
+      );
+      toggleExpirationField();
+      loadDataAndRender();
+    });
+
+    const toggleAddBtn = document.getElementById('toggle-add-form-btn');
+    const addContainer = document.getElementById('add-item-container');
+    const addForm = document.getElementById('add-item-form');
+    const categoryInput = document.getElementById('category');
+    const expWrapper = document.getElementById('expiration-date-wrapper');
+    const searchInput = document.getElementById('search-input');
+    const lowStockFilter = document.getElementById('low-stock-filter');
+    const catFilter = document.getElementById('category-filter');
+    const invList = document.getElementById('inventory-list');
+    const exportInvBtn = document.getElementById('export-csv-btn');
+    const exportLogBtn = document.getElementById('export-log-csv-btn');
+
+    const stockModal = document.getElementById('stock-modal');
+    const histModal = document.getElementById('history-modal');
+
+    const logsKey = 'inventory_logs';
+    const invKey = 'inventory_items';
+
+    let inventory = [];
+    let logs = [];
+
+    const saveInventory = () => localStorage.setItem(invKey, JSON.stringify(inventory));
+    const loadInventory = () => JSON.parse(localStorage.getItem(invKey) || '[]');
+    const saveLogs = () => localStorage.setItem(logsKey, JSON.stringify(logs));
+    const loadLogs = () => JSON.parse(localStorage.getItem(logsKey) || '[]');
+
+    function loadDataAndRender() {
+      inventory = loadInventory();
+      logs = loadLogs();
+      renderInventory();
+    }
+
+    toggleAddBtn.addEventListener('click', () => {
+      addContainer.classList.toggle('form-slide-up');
+      addContainer.classList.toggle('form-slide-down');
+      toggleAddBtn.textContent = addContainer.classList.contains('form-slide-down') ? 'Hide Form' : 'Add New Item';
+    });
+
+    categoryInput.addEventListener('change', toggleExpirationField);
+    function toggleExpirationField() {
+      expWrapper.style.display = ['APIs (Active Ingredients)','Excipients','Solvents'].includes(categoryInput.value) ? 'block' : 'none';
+    }
+
+    addForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const newItem = {
+        id: Date.now().toString(),
+        name: document.getElementById('item-name').value,
+        catalogNumber: document.getElementById('catalog-number').value,
+        category: categoryInput.value,
+        location: document.getElementById('location').value,
+        quantity: parseFloat(document.getElementById('quantity').value) || 0,
+        units: document.getElementById('units').value,
+        reorderLevel: parseFloat(document.getElementById('reorder-level').value) || 0,
+        expirationDate: document.getElementById('expiration-date').value
+      };
+      if (!['APIs (Active Ingredients)','Excipients','Solvents'].includes(newItem.category)) newItem.expirationDate = '';
+      inventory.push(newItem);
+      saveInventory();
+      renderInventory();
+      addForm.reset();
+      toggleExpirationField(); toggleAddBtn.click();
+    });
+
+    searchInput.addEventListener('input', renderInventory);
+    lowStockFilter.addEventListener('change', renderInventory);
+    catFilter.addEventListener('change', renderInventory);
+
+    function renderInventory() {
+      invList.innerHTML = '';
+      const term = searchInput.value.toLowerCase();
+      const showLow = lowStockFilter.checked;
+      const selCat = catFilter.value;
+      const filtered = inventory.filter(item => (
+        (!term || item.name.toLowerCase().includes(term) || (item.catalogNumber && item.catalogNumber.toLowerCase().includes(term)) || item.location.toLowerCase().includes(term))
+        && (!showLow || item.quantity <= item.reorderLevel)
+        && (selCat === 'all' || item.category === selCat)
+      ));
+
+      if (filtered.length === 0 && inventory.length > 0) {
+        invList.innerHTML = `<div class="text-center text-gray-500 py-12">No items match your criteria.</div>`;
+      }
+      filtered.forEach((item, idx) => {
+        const row = document.createElement('div');
+        row.className = `item-row grid grid-cols-12 gap-4 items-center p-4 initial-hidden`;
+        row.style.animationDelay = `${idx * 50}ms`;
+        row.classList.add('fade-in');
+
+        const expHTML = (() => {
+          if (['APIs (Active Ingredients)','Excipients','Solvents'].includes(item.category) && item.expirationDate) {
+            const expD = new Date(item.expirationDate);
+            const today = new Date(); today.setHours(0,0,0,0);
+            const isExp = expD < today;
+            const cls = isExp ? 'text-red-500 font-bold' : 'text-gray-500';
+            return `<p class="text-sm font-medium ${cls}">Expires: <span class="font-normal">${item.expirationDate}</span></p>`;
+          }
+          return '';
+        })();
+
+        row.innerHTML = `
+          <div class="col-span-12 md:col-span-3">
+            <h2 class="text-lg font-bold text-gray-800">${item.name}</h2>
+            <p class="text-sm text-gray-500">${item.catalogNumber || 'No Catalog #'}</p>
+          </div>
+          <div class="col-span-6 md:col-span-2">
+            <p class="text-sm text-gray-600">${item.category}</p>
+          </div>
+          <div class="col-span-6 md:col-span-2">
+            <p class="text-sm font-medium text-gray-500">Location: <span class="font-normal text-gray-800">${item.location}</span></p>
+            ${expHTML}
+          </div>
+          <div class="col-span-6 md:col-span-2">
+            <span data-item-id="${item.id}" class="quantity-display font-semibold text-lg ${getQtyColor(item)}">${item.quantity}</span>
+            <span class="font-normal text-gray-500 text-sm"> ${item.units}</span>
+            <p class="text-xs text-gray-400">Reorder at ${item.reorderLevel}</p>
+          </div>
+          <div class="col-span-6 md:col-span-3 flex justify-end items-center gap-2">
+            <button data-id="${item.id}" class="history-btn secondary-button text-xs font-semibold py-1 px-3 rounded-md">View History</button>
+            <button data-id="${item.id}" data-action="use" class="use-stock-btn secondary-button text-xs font-semibold py-1 px-3 rounded-md">Use</button>
+            <button data-id="${item.id}" data-action="add" class="add-stock-btn secondary-button text-xs font-semibold py-1 px-3 rounded-md">Add</button>
+            <button data-id="${item.id}" class="delete-btn text-gray-400 hover:text-red-600 text-xl font-bold p-1">&times;</button>
+          </div>
+        `;
+
+        invList.appendChild(row);
+      });
+    }
+
+    function getQtyColor(item) {
+      const qty = parseFloat(item.quantity), rl = parseFloat(item.reorderLevel);
+      if (qty <= 0) return 'text-red-500';
+      if (qty <= rl) return 'text-yellow-500';
+      return 'text-green-500';
+    }
+
+    invList.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      if (btn.classList.contains('delete-btn')) {
+        if (confirm('Delete this item?')) {
+          inventory = inventory.filter(i => i.id !== id);
+          saveInventory();
+          renderInventory();
+        }
+      } else if (btn.classList.contains('use-stock-btn') || btn.classList.contains('add-stock-btn')) {
+        const itm = inventory.find(i => i.id === id);
+        openStockModal(itm, btn.dataset.action);
+      } else if (btn.classList.contains('history-btn')) {
+        openHistoryModal(id);
+      }
+    });
+
+    // STOCK MODAL
+    function openStockModal(item, action) {
+      stockModal.classList.remove('hidden');
+      const modal = stockModal.querySelector('.modal-content');
+      modal.classList.remove('modal-scale-out');
+      modal.classList.add('modal-scale-in');
+
+      document.getElementById('modal-title').textContent = action === 'use' ? 'Use Stock' : 'Add Stock';
+      document.getElementById('modal-item-name').textContent = `Current: ${item.quantity} ${item.units}`;
+      document.getElementById('modal-quantity').value = '';
+      document.getElementById('modal-username').value = '';
+      document.getElementById('modal-labpurpose').value = '';
+
+      const confirmBtn = document.getElementById('modal-confirm-btn');
+      const handle = () => {
+        const amt = parseFloat(document.getElementById('modal-quantity').value);
+        const uname = document.getElementById('modal-username').value.trim();
+        const lab = document.getElementById('modal-labpurpose').value.trim();
+        if (!(amt > 0 && uname && lab)) { alert('Enter all fields correctly'); return; }
+
+        item.quantity = action === 'use' ? Math.max(0, item.quantity - amt) : item.quantity + amt;
+        saveInventory();
+
+        // log transaction
+        logs.push({
+          timestamp: new Date().toISOString(),
+          itemId: item.id,
+          itemName: item.name,
+          action: action === 'use' ? 'Used' : 'Added',
+          amount: amt,
+          units: item.units,
+          previousQuantity: action === 'use' ? item.quantity + amt : item.quantity - amt,
+          currentQuantity: item.quantity,
+          userName: uname,
+          labPurpose: lab
+        });
+        saveLogs();
+
+        renderInventory();
+        const qtyDisp = document.querySelector(`.quantity-display[data-item-id="${item.id}"]`);
+        qtyDisp?.classList.remove('quantity-flash-add','quantity-flash-use');
+        void qtyDisp?.offsetWidth;
+        qtyDisp?.classList.add(action === 'add' ? 'quantity-flash-add' : 'quantity-flash-use');
+
+        closeStockModal();
+      };
+
+      document.getElementById('modal-cancel-btn').onclick = closeStockModal;
+      confirmBtn.onclick = handle;
+    }
+
+    function closeStockModal() {
+      const modal = stockModal.querySelector('.modal-content');
+      modal.classList.remove('modal-scale-in');
+      modal.classList.add('modal-scale-out');
+      setTimeout(() => stockModal.classList.add('hidden'), 300);
+    }
+
+    // HISTORY MODAL
+    function openHistoryModal(itemId) {
+      histModal.classList.remove('hidden');
+      const modal = histModal.querySelector('.modal-content');
+      modal.classList.remove('modal-scale-out');
+      modal.classList.add('modal-scale-in');
+
+      const content = document.getElementById('history-modal-content');
+      content.innerHTML = '';
+
+      const relevant = logs.filter(l => l.itemId === itemId).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+      if (relevant.length === 0) {
+        content.innerHTML = `<p class="text-center text-gray-500">No history for this item.</p>`;
+      } else {
+        relevant.forEach(l => {
+          content.innerHTML += `
+            <div class="border-b border-gray-200 py-2">
+              <p><strong>${l.action}</strong> ${l.amount} ${l.units} by <em>${l.userName}</em> (Lab: ${l.labPurpose}) at ${new Date(l.timestamp).toLocaleString()}</p>
+              <p class="text-xs text-gray-500">Prev: ${l.previousQuantity}, Now: ${l.currentQuantity}</p>
+            </div>`;
+        });
+      }
+    }
+
+    document.getElementById('history-modal-close-btn').onclick = () => {
+      const modal = histModal.querySelector('.modal-content');
+      modal.classList.remove('modal-scale-in');
+      modal.classList.add('modal-scale-out');
+      setTimeout(() => histModal.classList.add('hidden'), 300);
+    };
+
+    // CSV Exports
+    function downloadCSV(text, filename) {
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(new Blob([text], { type: 'text/csv'}));
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+
+    exportInvBtn.onclick = () => {
+      const filtered = inventory;
+      if (filtered.length === 0) { alert('No inventory to export'); return; }
+      let csv = 'Name,Catalog#,Category,Location,Quantity,Units,ReorderLevel,ExpirationDate\n';
+      filtered.forEach(i => {
+        csv += `"${i.name}","${i.catalogNumber}","${i.category}","${i.location}",${i.quantity},"${i.units}",${i.reorderLevel},"${i.expirationDate}"\n`;
+      });
+      downloadCSV(csv, 'inventory_export.csv');
+    };
+
+    exportLogBtn.onclick = () => {
+      if (logs.length === 0) { alert('No logs to export'); return; }
+      let csv = 'Timestamp,Item Name,Action,Amount,Units,User,Lab/Purpose,PrevQty,CurrentQty\n';
+      logs.forEach(l => {
+        csv += `"${l.timestamp}","${l.itemName}","${l.action}",${l.amount},"${l.units}","${l.userName}","${l.labPurpose}",${l.previousQuantity},${l.currentQuantity}\n`;
+      });
+      downloadCSV(csv, 'transaction_logs.csv');
+    };
+  </script>
+</body>
+</html>
